@@ -1,55 +1,83 @@
 name: Markdown zu PDF
+# Erklärung: Name des Workflows (wird in der GitHub Actions UI angezeigt).
 
 on:
+# Erklärung: Wann der Workflow ausgelöst werden soll.
   push:
+  # Erklärung: Bei jedem Push in das Repository (unter bestimmten Pfaden).
     paths:
       - "docs/**/*.md"
+      # Erklärung: Nur auslösen, wenn Dateien in docs/ mit Endung .md geändert wurden.
       - ".github/workflows/markdown-pdf.yml"
+      # Erklärung: Auch auslösen, wenn diese Workflow-Datei selbst geändert wird.
   workflow_dispatch:
+  # Erklärung: Ermöglicht manuelles Starten des Workflows in der GitHub UI.
 
 jobs:
+# Erklärung: Sammlung von Aufgaben (Jobs), die der Workflow ausführt.
   build:
+  # Erklärung: Name des Jobs (interner Schlüssel).
     name: Markdown in HTML und PDF umwandeln
+    # Erklärung: Anzeigename des Jobs in der UI.
     runs-on: ubuntu-latest
+    # Erklärung: VM-Typ, auf dem der Job läuft (hier Ubuntu).
 
     permissions:
       contents: read
+      # Erklärung: Erlaubt dem Job, das Repository-Inhalte zu lesen (für checkout).
 
     steps:
+    # Erklärung: Schritt-für-Schritt-Anweisungen innerhalb des Jobs.
       - name: Repository auschecken
         uses: actions/checkout@v4
+        # Erklärung: Holt den Quellcode des Repos in die Runner-Umgebung.
 
       - name: Werkzeuge installieren
         run: |
           sudo apt-get update
+          # Erklärung: Paketliste aktualisieren.
           sudo apt-get install -y pandoc wkhtmltopdf
+          # Erklärung: Installiert pandoc (Markdown→HTML) und wkhtmltopdf (HTML→PDF).
 
       - name: Markdown-Dateien umwandeln
         shell: bash
         run: |
           mkdir -p ausgabe
+          # Erklärung: Erzeugt das Ausgabeverzeichnis (falls noch nicht vorhanden).
           shopt -s nullglob
+          # Erklärung: Bash-Option: leere Globs werden als leeres Array behandelt, nicht als literal.
 
           files=(docs/*.md)
+          # Erklärung: Legt ein Array mit allen .md-Dateien im docs/-Ordner an.
 
           if [ ${#files[@]} -eq 0 ]; then
             echo "Keine Markdown-Dateien gefunden." | tee ausgabe/HINWEIS.txt
+            # Erklärung: Schreibt Hinweisdatei in ausgabe/, falls keine Dateien da sind.
             exit 0
+            # Erklärung: Beendet den Schritt erfolgreich (kein Fehler).
           fi
 
           for file in "${files[@]}"; do
             base="$(basename "$file" .md)"
+            # Erklärung: Entfernt Pfad und .md-Endung, Ergebnis ist der Basisdateiname.
             echo "Verarbeite $file"
+            # Erklärung: Ausgabe für die Logs, welcher Datei gerade verarbeitet wird.
             pandoc "$file" --standalone --to=html5 --metadata title="$base" -o "ausgabe/$base.html"
+            # Erklärung: Konvertiert Markdown → HTML (standalone), setzt HTML-Titel.
             wkhtmltopdf "ausgabe/$base.html" "ausgabe/$base.pdf"
+            # Erklärung: Konvertiert das erzeugte HTML → PDF.
           done
 
           echo "Erzeugte Dateien:"
           ls -la ausgabe
+          # Erklärung: Listet die Dateien im Ausgabeordner auf (für die Logs).
 
       - name: Ergebnisse als Artefakt bereitstellen
         uses: actions/upload-artifact@v4
         with:
           name: markdown-ausgabe
+          # Erklärung: Name des Artefakts, wie es in GitHub angezeigt wird.
           path: ausgabe/
+          # Erklärung: Welcher Ordner hochgeladen werden soll.
           if-no-files-found: warn
+          # Erklärung: Verhalten, wenn keine Dateien gefunden wurden (nur Warnung).
