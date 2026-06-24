@@ -1,0 +1,55 @@
+name: Markdown zu PDF
+
+on:
+  push:
+    paths:
+      - "docs/**/*.md"
+      - ".github/workflows/markdown-pdf.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Markdown in HTML und PDF umwandeln
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Werkzeuge installieren
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc wkhtmltopdf
+
+      - name: Markdown-Dateien umwandeln
+        shell: bash
+        run: |
+          mkdir -p ausgabe
+          shopt -s nullglob
+
+          files=(docs/*.md)
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "Keine Markdown-Dateien gefunden." | tee ausgabe/HINWEIS.txt
+            exit 0
+          fi
+
+          for file in "${files[@]}"; do
+            base="$(basename "$file" .md)"
+            echo "Verarbeite $file"
+            pandoc "$file" --standalone --to=html5 --metadata title="$base" -o "ausgabe/$base.html"
+            wkhtmltopdf "ausgabe/$base.html" "ausgabe/$base.pdf"
+          done
+
+          echo "Erzeugte Dateien:"
+          ls -la ausgabe
+
+      - name: Ergebnisse als Artefakt bereitstellen
+        uses: actions/upload-artifact@v4
+        with:
+          name: markdown-ausgabe
+          path: ausgabe/
+          if-no-files-found: warn
