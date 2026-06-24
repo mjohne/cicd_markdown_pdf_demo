@@ -1,4 +1,4 @@
-# Kursnotiz
+# Kursnotiz 
 
 Diese Datei wird durch eine GitHub-Action automatisch verarbeitet.
 
